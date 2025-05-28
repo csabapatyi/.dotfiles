@@ -136,3 +136,66 @@ alias gp="git pull"
 alias gcm="git commit -m"
 alias gca="git commit --amend"
 alias gb="git rebase"
+
+# SSH Agent Setup - Share agent across terminals
+SSH_ENV="${HOME}/.ssh/agent-environment"
+
+# Function to start the agent
+start_ssh_agent() {
+    echo "Initializing new SSH agent..."
+    # Start ssh-agent, redirecting output to our environment file
+    ssh-agent -s > "${SSH_ENV}"
+    # Set permissions for the environment file
+    chmod 0600 "${SSH_ENV}"
+    # Source the environment file into the current shell
+    . "${SSH_ENV}" > /dev/null # Source it to get SSH_AGENT_PID etc.
+
+    if [ -S "$SSH_AUTH_SOCK" ]; then
+        echo "SSH agent started (PID: $SSH_AGENT_PID)."
+        echo "Adding SSH identities from ${HOME}/.ssh/ ..."
+        find "${HOME}/.ssh/" -maxdepth 1 -type f \
+            ! -name '*.pub' \
+            ! -name 'known_hosts' \
+            ! -name 'authorized_keys' \
+            ! -name 'config' \
+            ! -name 'agent-environment' \
+            -print0 | while IFS= read -r -d $'\0' key_file; do
+            ssh-add "${key_file}" < /dev/null 2>/dev/null
+        done
+        # ssh-add -l # Optionally list keys
+    else
+        echo "Failed to start ssh-agent and source environment."
+        # Clean up the potentially incomplete env file if agent failed to start properly
+        rm -f "${SSH_ENV}"
+    fi
+}
+
+# Check if SSH_AUTH_SOCK is set and the socket file exists and agent is responsive
+if [ -S "$SSH_AUTH_SOCK" ] && ssh-add -l > /dev/null 2>&1; then
+    echo "SSH agent already configured and responsive for this shell (PID: $SSH_AGENT_PID)."
+else
+    # If SSH_AUTH_SOCK is not set or agent not responsive, try to load from file
+    if [ -f "${SSH_ENV}" ]; then
+        . "${SSH_ENV}" > /dev/null # Source the environment variables
+        # After sourcing, check again if the agent is responsive
+        if ! ssh-add -l > /dev/null 2>&1; then
+            echo "Found agent environment file, but agent not responsive. Starting new one."
+            start_ssh_agent
+        else
+            echo "Connected to existing SSH agent (PID: $SSH_AGENT_PID, Socket: $SSH_AUTH_SOCK)."
+        fi
+    else
+        # No environment file, so start a new agent
+        start_ssh_agent
+    fi
+fi
+
+# Optional: Clean up the agent environment file on shell exit
+# This is tricky because you only want the *last* shell using the agent to kill it.
+# A more robust solution for agent lifetime management is tools like 'keychain'
+# or systemd user services if you need the agent to persist even after all shells close.
+# For simplicity, this script doesn't automatically kill the agent or remove SSH_ENV on exit.
+# You can manually kill it with: eval $(cat ~/.ssh/agent-environment | grep SSH_AGENT_PID | sed 's/SSH_AGENT_PID=\([0-9]*\); export SSH_AGENT_PID;/ssh-agent -k; echo Agent \1 killed/')
+# Or more simply if you sourced it: ssh-agent -k (this will use the env vars)
+# And then: rm ~/.ssh/agent-environment
+

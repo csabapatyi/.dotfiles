@@ -483,6 +483,7 @@ require('lazy').setup({
 
       -- Allows extra capabilities provided by blink.cmp
       'saghen/blink.cmp',
+      'hrsh7th/cmp-nvim-lsp', -- Crucial for nvim-cmp to get LSP suggestions
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -690,6 +691,9 @@ require('lazy').setup({
             },
           },
         },
+
+        terraformls = {},
+        tflint = {},
       }
 
       -- Ensure the servers and tools above are installed
@@ -725,6 +729,96 @@ require('lazy').setup({
           end,
         },
       }
+    end,
+  },
+
+  {
+    'hrsh7th/nvim-cmp',
+    event = 'InsertEnter', -- Load when entering insert mode
+    dependencies = {
+      'hrsh7th/cmp-nvim-lsp', -- Source for LSP (MUST HAVE)
+      'hrsh7th/cmp-buffer', -- Source for buffer words
+      'hrsh7th/cmp-path', -- Source for file paths
+      'hrsh7th/cmp-cmdline', -- Source for command line
+      'L3MON4D3/LuaSnip', -- Snippet engine (recommended)
+      'saadparwaiz1/cmp_luasnip', -- Snippet source for nvim-cmp
+      -- 'rafamadriz/friendly-snippets', -- Optional: a bunch of useful snippets
+      -- 'saghen/blink.cmp' is already a dependency of nvim-lspconfig in your setup
+    },
+    config = function()
+      local cmp = require 'cmp'
+      local luasnip = require 'luasnip'
+      -- Optional: Load snippets from friendly-snippets if you use it
+      -- pcall(function() require("luasnip.loaders.from_vscode").lazy_load() end)
+
+      cmp.setup {
+        snippet = {
+          expand = function(args)
+            luasnip.lsp_expand(args.body)
+          end,
+        },
+        mapping = cmp.mapping.preset.insert {
+          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+          ['<C-Space>'] = cmp.mapping.complete(), -- Main completion trigger
+          ['<C-e>'] = cmp.mapping.abort(),
+          ['<CR>'] = cmp.mapping.confirm { select = true }, -- Confirm selection
+          ['<Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+          ['<S-Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { 'i', 's' }),
+        },
+        sources = cmp.config.sources {
+          { name = 'nvim_lsp' }, -- For LSP suggestions
+          { name = 'luasnip' }, -- For snippets
+          { name = 'buffer' }, -- For words from current buffer
+          { name = 'path' }, -- For file paths
+        },
+        formatting = {
+          fields = { 'kind', 'abbr', 'menu' },
+          format = function(entry, vim_item)
+            -- Kind icons (optional, requires a nerd font)
+            -- You can customize this further.
+            vim_item.kind = string.format('%s %s', vim_item.kind, vim_item.kind)
+            vim_item.menu = ({
+              nvim_lsp = '[LSP]',
+              luasnip = '[Snp]',
+              buffer = '[Buf]',
+              path = '[Pth]',
+            })[entry.source.name]
+            return vim_item
+          end,
+        },
+        window = {
+          completion = cmp.config.window.bordered(),
+          documentation = cmp.config.window.bordered(),
+        },
+        -- experimental = { ghost_text = true }, -- Optional: for inline completion hints
+      }
+
+      -- Setup for command line completion
+      cmp.setup.cmdline('/', {
+        mapping = cmp.mapping.preset.cmdline(),
+        sources = { { name = 'buffer' } },
+      })
+      cmp.setup.cmdline(':', {
+        mapping = cmp.mapping.preset.cmdline(),
+        sources = cmp.config.sources({ { name = 'path' } }, { { name = 'cmdline' } }),
+      })
     end,
   },
 
