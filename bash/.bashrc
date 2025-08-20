@@ -123,6 +123,7 @@ alias vim="nvim"
 alias vi="nvim"
 alias ll="eza -hla --group-directories-first"
 alias lls="eza -hla --group-directories-first --total-size"
+alias untar="tar zxfv"
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
 
@@ -198,4 +199,5 @@ fi
 # You can manually kill it with: eval $(cat ~/.ssh/agent-environment | grep SSH_AGENT_PID | sed 's/SSH_AGENT_PID=\([0-9]*\); export SSH_AGENT_PID;/ssh-agent -k; echo Agent \1 killed/')
 # Or more simply if you sourced it: ssh-agent -k (this will use the env vars)
 # And then: rm ~/.ssh/agent-environment
+
 
