@@ -127,7 +127,7 @@ alias untar="tar zxfv"
 eval "$(starship init bash)"
 eval "$(zoxide init bash)"
 
-export PATH="/opt/nvim-linux-x86_64/bin:${HOME}/.local/bin:${PATH}"a
+export PATH="${HOME}/.cargo/bin:/opt/nvim-linux-x86_64/bin:${HOME}/.local/bin:${PATH}"
 export EDITOR='nvim'
 complete -C '/usr/local/bin/aws_completer' aws
 
